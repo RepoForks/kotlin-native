@@ -1,5 +1,6 @@
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include "DebugInfoC.h"
 
 /** 
@@ -7,12 +8,24 @@
  */
 
 namespace llvm {
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBuilder, DIBuilderRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DICompileUnit, DICompileUnitRef)
-DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Module, LLVMModuleRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBuilder,        DIBuilderRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DICompileUnit,    DICompileUnitRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIFile,           DIFileRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBasicType,      DIBasicTypeRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIModule,         DIModuleRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIScope,          DIScopeOpaqueRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DISubroutineType, DISubroutineTypeRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DISubprogram,     DISubprogramRef)
+
+// from Module.cpp
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Module,        LLVMModuleRef)
 }
 
 extern "C" {
+
+  DIBuilderRef DICreateBuilder(LLVMModuleRef module) {
+    return llvm::wrap(new llvm::DIBuilder(* llvm::unwrap(module)));
+  }
 
   DICompileUnitRef DICreateCompilationUnit(DIBuilderRef builder, unsigned int lang,
                                            const char *file, const char* dir,
@@ -21,9 +34,34 @@ extern "C" {
     return llvm::wrap(llvm::unwrap(builder)->createCompileUnit(lang, file, dir, producer, isOptimized, flags, rv));
   }
 
+  DIFileRef DICreateFile(DIBuilderRef builder, const char *filename, const char *directory) {
+    return llvm::wrap(llvm::unwrap(builder)->createFile(filename, directory));
+  }
 
-  DIBuilderRef DICreateBuilder(LLVMModuleRef module) {
-    return llvm::wrap(new llvm::DIBuilder(* llvm::unwrap(module)));
+  DIBasicTypeRef DICreateBasicType(DIBuilderRef builder, const char* name, uint64_t sizeInBits, uint64_t alignment, unsigned encoding) {
+    return llvm::wrap(llvm::unwrap(builder)->createBasicType(name, sizeInBits, alignment, encoding));
+  }
+
+  DIModuleRef DICreateModule(DIBuilderRef builder, DIScopeOpaqueRef scope,
+                             const char* name, const char* configurationMacro,
+                             const char* includePath, const char *iSysRoot) {
+    return llvm::wrap(llvm::unwrap(builder)->createModule(llvm::unwrap(scope), name, configurationMacro, includePath, iSysRoot));
+  }
+
+  DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
+                                   const char* name, const char *linkageName,
+                                   DIFileRef file, unsigned lineNo,
+                                   DISubroutineTypeRef type, int isLocal,
+                                   int isDefinition, unsigned scopeLine) {
+    return llvm::wrap(llvm::unwrap(builder)->createFunction(llvm::unwrap(scope),
+                                                            name,
+                                                            linkageName,
+                                                            llvm::unwrap(file),
+                                                            lineNo,
+                                                            llvm::unwrap(type),
+                                                            isLocal,
+                                                            isDefinition,
+                                                            scopeLine));
   }
 }
 
