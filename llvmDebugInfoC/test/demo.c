@@ -80,10 +80,22 @@ int main() {
   DIFileRef file = DICreateFile(builder, "1.kt", "src");
   DIModuleRef m =  DICreateModule(builder, m, "a.out", "", "", "");
   DICompileUnitRef cu = DICreateCompilationUnit(builder, 4, "1.kt", "src", "konanc", 0, "", 0);
-  DIBasicTypeRef type0 = DICreateBasicType(builder, "foo", 128, 4, 0);
+  DIBasicTypeRef type0 = DICreateBasicType(builder, "int", 32, 4, 0);
   DISubroutineTypeRef subroutineType = DICreateSubroutineType(builder, &type0, 1);
-  DICreateFunction(builder, cu, "test", "test:test", file, 66, subroutineType, 0, 1, 0);
 
+  const char *functionName = "foo";
+
+  DISubprogramRef diFunction = DICreateFunction(builder, cu, functionName, "foo:link", file, 66, subroutineType, 0, 1, 0);
+  
+  //function creation.
+  LLVMBuilderRef llvmBuilder = LLVMCreateBuilderInContext(LLVMGetModuleContext(module));
+  LLVMTypeRef intType = LLVMInt32Type();
+  LLVMValueRef functionType = LLVMFunctionType(intType, &intType, 1, 0);
+  LLVMValueRef llvmFunction = LLVMAddFunction(module, functionName, functionType);
+  LLVMBasicBlockRef bb = LLVMAppendBasicBlock(llvmFunction, "entry");
+  LLVMPositionBuilderAtEnd(llvmBuilder, bb);
+  LLVMBuildRet(llvmBuilder, LLVMGetParam(llvmFunction, 0));
+  
   DIFinalize(builder);
   LLVMDumpModule(module);
   return 0;
