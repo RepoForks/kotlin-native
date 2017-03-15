@@ -7,6 +7,7 @@ extern "C" {
   typedef struct DICompileUnit    *DICompileUnitRef;
   typedef struct DIFile           *DIFileRef;
   typedef struct DIBasicType      *DIBasicTypeRef;
+  typedef struct DIType           *DITypeOpaqueRef;
   typedef struct DISubprogram     *DISubprogramRef;
   typedef struct DIModule         *DIModuleRef;
   typedef struct DIScope          *DIScopeOpaqueRef;
@@ -31,6 +32,10 @@ extern "C" {
                                    DIFileRef file, unsigned lineNo,
                                    DISubroutineTypeRef type, int isLocal,
                                    int isDefinition, unsigned scopeLine);
+  
+  DISubroutineTypeRef DICreateSubroutineType(DIBuilderRef builder,
+                                             DITypeOpaqueRef* types,
+                                             unsigned typesCount);
 
 # ifdef __cplusplus
 }

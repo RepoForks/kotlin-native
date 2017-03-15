@@ -77,11 +77,14 @@
 int main() {
   LLVMModuleRef module = LLVMModuleCreateWithName("test");
   DIBuilderRef builder = DICreateBuilder(module);
-  DIFileRef file = DICreateFile(builder, "a.out", "");
+  DIFileRef file = DICreateFile(builder, "1.kt", "src");
   DIModuleRef m =  DICreateModule(builder, m, "a.out", "", "", "");
-  DICreateCompilationUnit(builder, 4, "1.kt", "src", "konanc", 0, "", 0);
+  DICompileUnitRef cu = DICreateCompilationUnit(builder, 4, "1.kt", "src", "konanc", 0, "", 0);
   DIBasicTypeRef type0 = DICreateBasicType(builder, "foo", 128, 4, 0);
- 
+  DISubroutineTypeRef subroutineType = DICreateSubroutineType(builder, &type0, 1);
+  DICreateFunction(builder, cu, "test", "test:test", file, 66, subroutineType, 0, 1, 0);
+
+  DIFinalize(builder);
   LLVMDumpModule(module);
   return 0;
 }

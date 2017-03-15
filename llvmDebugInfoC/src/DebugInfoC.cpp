@@ -12,6 +12,7 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBuilder,        DIBuilderRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DICompileUnit,    DICompileUnitRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIFile,           DIFileRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIBasicType,      DIBasicTypeRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIType,           DITypeOpaqueRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIModule,         DIModuleRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIScope,          DIScopeOpaqueRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DISubroutineType, DISubroutineTypeRef)
@@ -27,6 +28,10 @@ extern "C" {
     return llvm::wrap(new llvm::DIBuilder(* llvm::unwrap(module)));
   }
 
+  void DIFinalize(DIBuilderRef builder) {
+    llvm::unwrap(builder)->finalize();
+  }
+  
   DICompileUnitRef DICreateCompilationUnit(DIBuilderRef builder, unsigned int lang,
                                            const char *file, const char* dir,
                                            const char * producer, int isOptimized,
@@ -62,6 +67,19 @@ extern "C" {
                                                             isLocal,
                                                             isDefinition,
                                                             scopeLine));
+  }
+
+  /* */
+  DISubroutineTypeRef DICreateSubroutineType(DIBuilderRef builder,
+                                             DITypeOpaqueRef* types,
+                                             unsigned typesCount) {
+    std::vector<llvm::Metadata *> parameterTypes;
+    for (int i = 0; i != typesCount; ++i) {
+      parameterTypes.push_back(llvm::unwrap(types[i]));
+    }
+    llvm::DIBuilder *b = llvm::unwrap(builder);
+    llvm::DITypeRefArray typeArray = b->getOrCreateTypeArray(parameterTypes);
+    return llvm::wrap(b->createSubroutineType(typeArray));
   }
 }
 
