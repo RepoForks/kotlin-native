@@ -37,6 +37,7 @@ extern "C" {
                                              DITypeOpaqueRef* types,
                                              unsigned typesCount);
 
+  void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp);
 # ifdef __cplusplus
 }
 # endif

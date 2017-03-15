@@ -1,4 +1,5 @@
 #include <llvm/IR/DebugInfo.h>
+#include <llvm/IR/Function.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include "DebugInfoC.h"
@@ -80,6 +81,10 @@ extern "C" {
     llvm::DIBuilder *b = llvm::unwrap(builder);
     llvm::DITypeRefArray typeArray = b->getOrCreateTypeArray(parameterTypes);
     return llvm::wrap(b->createSubroutineType(typeArray));
+  }
+
+  void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp) {
+    llvm::cast<llvm::Function>(llvm::unwrap(fn))->setSubprogram(llvm::unwrap(sp));
   }
 }
 

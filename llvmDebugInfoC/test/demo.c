@@ -92,6 +92,7 @@ int main() {
   LLVMTypeRef intType = LLVMInt32Type();
   LLVMValueRef functionType = LLVMFunctionType(intType, &intType, 1, 0);
   LLVMValueRef llvmFunction = LLVMAddFunction(module, functionName, functionType);
+  DIFunctionAddSubprogram(llvmFunction, diFunction);
   LLVMBasicBlockRef bb = LLVMAppendBasicBlock(llvmFunction, "entry");
   LLVMPositionBuilderAtEnd(llvmBuilder, bb);
   LLVMBuildRet(llvmBuilder, LLVMGetParam(llvmFunction, 0));
