@@ -5,11 +5,15 @@ model {
     debugInfo(NativeLibrarySpec) {
       sources {
         cpp {
-	   source {
-	     srcDirs "src/main/cpp"
-	     include "**/*.cpp"
-	   }
-	 }
+      	   source {
+      	     srcDirs "src/main/cpp"
+      	     include "**/*.cpp"
+      	   }
+      	 }
+      }
+      binaries.all {
+        cppCompiler.args "--std=c++11", "-I${llvmDir}/include", "-I${projectDir}/src/main/include"
+	linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
       }
     }
   }
