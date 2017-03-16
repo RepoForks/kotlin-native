@@ -1,4 +1,3 @@
-#include <llvm-c/Core.h>
 #include <DebugInfoC.h>
 //clang llvmDebugInfoC/test/demo.c -IllvmDebugInfoC/include/ -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include  -c
 

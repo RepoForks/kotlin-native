@@ -1,5 +1,6 @@
 #ifndef __DEBUG_INFO_C_H__
 # define __DEBUG_INFO_C_H__
+#include <llvm-c/Core.h>
 # ifdef __cplusplus
 extern "C" {
 # endif
