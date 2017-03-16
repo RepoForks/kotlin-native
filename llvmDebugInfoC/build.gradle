@@ -1,0 +1,16 @@
+apply plugin: "cpp"
+
+model {
+  components {
+    debugInfo(NativeLibrarySpec) {
+      sources {
+        cpp {
+	   source {
+	     srcDirs "src/main/cpp"
+	     include "**/*.cpp"
+	   }
+	 }
+      }
+    }
+  }
+}
