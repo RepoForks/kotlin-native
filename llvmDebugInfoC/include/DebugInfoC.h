@@ -13,6 +13,7 @@ extern "C" {
   typedef struct DIScope          *DIScopeOpaqueRef;
   typedef struct DISubroutineType *DISubroutineTypeRef;
   typedef struct DISubprogram     *DISubprogramRef;
+  typedef struct DILocation       *DILocationRef;
 
   DIBuilderRef DICreateBuilder(LLVMModuleRef module);
   void DIFinalize(DIBuilderRef builder);
@@ -38,6 +39,7 @@ extern "C" {
                                              unsigned typesCount);
 
   void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp);
+  void LLVMBuilderSetDebugLocation(LLVMBuilderRef builder, unsigned line, unsigned col, DIScopeOpaqueRef scope);
 # ifdef __cplusplus
 }
 # endif

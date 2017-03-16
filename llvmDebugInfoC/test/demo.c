@@ -95,7 +95,8 @@ int main() {
   DIFunctionAddSubprogram(llvmFunction, diFunction);
   LLVMBasicBlockRef bb = LLVMAppendBasicBlock(llvmFunction, "entry");
   LLVMPositionBuilderAtEnd(llvmBuilder, bb);
-  LLVMBuildRet(llvmBuilder, LLVMGetParam(llvmFunction, 0));
+  LLVMBuilderSetDebugLocation(llvmBuilder, 42, 15, diFunction);
+  LLVMValueRef ret = LLVMBuildRet(llvmBuilder, LLVMGetParam(llvmFunction, 0));
   
   DIFinalize(builder);
   LLVMDumpModule(module);

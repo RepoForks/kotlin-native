@@ -1,8 +1,12 @@
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DebugInfoMetadata.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/Support/Casting.h>
 #include "DebugInfoC.h"
+
 
 /** 
  * c++ --std=c++11 llvmDebugInfoC/src/DebugInfoC.cpp -IllvmDebugInfoC/include/ -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include -Ldependencies/all/clang+llvm-3.9.0-darwin-macos/lib  -lLLVMCore -lLLVMSupport -lncurses -shared -o libLLVMDebugInfoC.dylib
@@ -18,6 +22,7 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIModule,         DIModuleRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIScope,          DIScopeOpaqueRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DISubroutineType, DISubroutineTypeRef)
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DISubprogram,     DISubprogramRef)
+DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DILocation,       DILocationRef)
 
 // from Module.cpp
 DEFINE_SIMPLE_CONVERSION_FUNCTIONS(Module,        LLVMModuleRef)
@@ -85,6 +90,11 @@ extern "C" {
 
   void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp) {
     llvm::cast<llvm::Function>(llvm::unwrap(fn))->setSubprogram(llvm::unwrap(sp));
+  }
+
+  void LLVMBuilderSetDebugLocation(LLVMBuilderRef builder, unsigned line,
+                                   unsigned col, DIScopeOpaqueRef scope) {
+    llvm::unwrap(builder)->SetCurrentDebugLocation(llvm::DebugLoc::get(line, col, llvm::unwrap(scope)));
   }
 }
 
