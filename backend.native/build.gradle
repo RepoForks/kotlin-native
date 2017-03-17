@@ -153,6 +153,13 @@ kotlinNativeInterop {
      linkerOpts llvmLinkerOpts()
    }
 
+    debugInfo {
+        dependsOn ":llvmDebugInfoC:debugInfoSharedLibrary"
+        defFile '../llvmDebugInfoC/debugInfo.def'
+        compilerOpts "-fPIC", "-I$llvmDir/include", "-I../llvmDebugInfoC/src/main/include"
+        linkerOpts llvmLinkerOpts()
+    }
+
    hash { // TODO: copy-pasted from ':common:compileHash'
      compilerOpts '-fPIC'
      linkerOpts '-fPIC'
@@ -184,6 +191,7 @@ dependencies {
    compilerCompile kotlinCompilerModule
    compilerCompile kotlinNativeInterop['llvm'].configuration
    compilerCompile kotlinNativeInterop['hash'].configuration
+   compilerCompile kotlinNativeInterop['debugInfo'].configuration
 
    cli_bcCompile "org.jetbrains.kotlin:kotlin-runtime:$kotlin_version"
    cli_bcCompile sourceSets.compiler.output
