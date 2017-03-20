@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.ir.util.getArguments
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.psi2ir.PsiSourceManager
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
@@ -58,6 +59,10 @@ internal fun emitLLVM(context: Context) {
         // used to compile runtime.bc.
         val llvmModule = LLVMModuleCreateWithName("out")!! // TODO: dispose
         context.llvmModule = llvmModule
+        val diLlvmModule = llvmModule as debugInfo.LLVMModuleRef
+        context.debugInfo.builder = debugInfo.DICreateBuilder(diLlvmModule)
+        val outFile = context.config.configuration.get(KonanConfigKeys.BITCODE_FILE)!!
+        context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
 
         context.llvmDeclarations = createLlvmDeclarations(context)
 
@@ -314,7 +319,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     //-------------------------------------------------------------------------//
-
+    var currentFile: IrFile? = null
     override fun visitFile(declaration: IrFile) {
 
         context.llvm.fileInitializers.clear()
@@ -333,6 +338,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val initFunction = createInitBody(initName)
         val initNode = createInitNode(initFunction, nodeName)
         createInitCtor(ctorName, initNode)
+        currentFile = declaration
     }
 
     //-------------------------------------------------------------------------//
@@ -1551,14 +1557,56 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             value is IrDelegatingConstructorCall ->
                 return delegatingConstructorCall(value.descriptor, args)
 
-            value.descriptor is FunctionDescriptor -> return evaluateFunctionCall(
-                    value as IrCall, args, resultLifetime(value))
+            value.descriptor is FunctionDescriptor -> {
+                val llvmValue =
+                evaluateFunctionCall(
+                        value as IrCall, args, resultLifetime(value))
+                currentFile?.apply {
+                    try {
+                        val scope = currentCodeContext.functionScope() as FunctionScope
+
+                        val diBuilder = codegen.builder as debugInfo.LLVMBuilderRef
+                        debugInfo.LLVMBuilderSetDebugLocation(diBuilder,
+                                fileEntry.getLineNumber(value.startOffset),
+                                fileEntry.getColumnNumber(value.startOffset),
+                                scope.declaration!!.scope() as debugInfo.DIScopeOpaqueRef)
+                    } catch (e:Exception) {
+
+                    }
+                }
+                return llvmValue
+            }
             else -> {
                 TODO("${ir2string(value)}")
             }
         }
     }
 
+    fun IrFile.file():debugInfo.DIFileRef {
+        return context.debugInfo.files.getOrPut(this) {
+            val path = this.fileEntry.name.split("/")
+            debugInfo.DICreateFile(context.debugInfo.builder, path.last(), path.dropLast(1).joinToString("/"))!!
+        }
+    }
+
+    val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
+    fun IrFunction.scope():debugInfo.DISubprogramRef {
+        return context.debugInfo.subprograms.getOrPut(this) {
+            val descriptor = this.descriptor
+            memScoped {
+                val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
+                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.module!! as debugInfo.DIScopeOpaqueRef,
+                        descriptor.name.identifier, descriptor.name.identifier,
+                        currentFile!!.file(), line, subroutineType, 0, 1, 0)
+                debugInfo.DIFunctionAddSubprogram(codegen.getLlvmFunctionType(descriptor) as debugInfo.LLVMValueRef, diFunction)
+                return@getOrPut diFunction!!
+            }
+        }
+    }
+
+    val IrFunction.line:Int  get() {
+       return currentFile?.fileEntry?.getLineNumber(startOffset)  ?: -1
+    }
     /**
      * Evaluates all arguments of [expression] that are explicitly represented in the IR.
      * Returns results in the same order as LLVM function expects, assuming that all explicit arguments
@@ -1896,7 +1944,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         memScoped {
             val arrayLength = args.size
             val argsCasted = args.map { it -> constPointer(it).bitcast(int8TypePtr) }
-            val llvmUsedGlobal = 
+            val llvmUsedGlobal =
                 context.llvm.staticData.placeGlobalArray("llvm.used", int8TypePtr, argsCasted)
 
             LLVMSetLinkage(llvmUsedGlobal.llvmGlobal, LLVMLinkage.LLVMAppendingLinkage);
@@ -1952,4 +2000,5 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 }
+
 
