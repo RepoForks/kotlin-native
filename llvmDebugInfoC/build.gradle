@@ -12,8 +12,8 @@ model {
       	 }
       }
       binaries.all {
-        cppCompiler.args "--std=c++11", "-I${llvmDir}/include", "-I${projectDir}/src/main/include"
-	linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
+        cppCompiler.args "--std=c++11", "-g", "-I${llvmDir}/include", "-I${projectDir}/src/main/include"
+	    linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
       }
     }
   }

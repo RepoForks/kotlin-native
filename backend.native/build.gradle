@@ -156,8 +156,8 @@ kotlinNativeInterop {
     debugInfo {
         dependsOn ":llvmDebugInfoC:debugInfoSharedLibrary"
         defFile '../llvmDebugInfoC/debugInfo.def'
-        compilerOpts "-fPIC", "-I$llvmDir/include", "-I../llvmDebugInfoC/src/main/include"
-        linkerOpts llvmLinkerOpts()
+        compilerOpts "-fPIC", "-g", "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include"
+        //linkerOpts "-Wl,-dead_strip", "-Wl,-flat_namespace", "-Wl,-undefined", "-Wl,suppress","-L$llvmDir/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
     }
 
    hash { // TODO: copy-pasted from ':common:compileHash'
@@ -219,7 +219,7 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs "-ea", 
             "-Dkonan.home=${project.parent.file('dist')}",
-            "-Djava.library.path=${project.buildDir}/nativelibs"
+            "-Djava.library.path=${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
         args('-output', project(':runtime').file("build/${target}/stdlib.kt.bc"), 
             '-nolink', '-nostdlib', '-ea',
             '-target', target,
@@ -235,6 +235,8 @@ targetList.each { target ->
         inputs.dir(project(':Interop:Runtime').file('src/native/kotlin'))
         outputs.file(project(':runtime').file("build/${target}/stdlib.kt.bc"))
 
+        environment DYLD_LIBRARY_PATH :"${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
+
         dependsOn ":runtime:${target}Runtime"
     }
 }
@@ -245,7 +247,7 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs "-ea", 
             "-Dkonan.home=${project.parent.file('dist')}",
-            "-Djava.library.path=${project.buildDir}/nativelibs"
+            "-Djava.library.path=${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
         args('-output', project(':runtime').file("build/${target}/start.kt.bc"), 
             '-nolink', '-nostdlib', '-ea',
             '-target', target,
@@ -272,7 +274,8 @@ task jars(type: Jar) {
     from 'build/classes/cli_bc', 
          'build/classes/compiler', 
          'build/classes/hashInteropStubs', 
-         'build/classes/llvmInteropStubs'
+         'build/classes/llvmInteropStubs',
+         'build/classes/debugInfoStubs'
 
     dependsOn 'build', ':runtime:hostRuntime', 'external_jars'
 }

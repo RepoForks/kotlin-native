@@ -1,4 +1,5 @@
 headers = DebugInfoC.h
 
-linkerOpts   = -lLLVMCore -lLLVMSupport -lncurses
-compilerOpts = -IllvmDebugInfoC/include -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include
+#linkerOpts   = -lLLVMCore -lLLVMSupport -lncurses
+linkerOpts = -L../llvmDebugInfoC/build/libs/debugInfo/shared -ldebugInfo
+compilerOpts = -IllvmDebugInfoC/include -g -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include
