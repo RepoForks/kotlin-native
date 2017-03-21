@@ -1598,7 +1598,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.module!! as debugInfo.DIScopeOpaqueRef,
                         descriptor.name.identifier, descriptor.name.identifier,
                         currentFile!!.file(), line, subroutineType, 0, 1, 0)
-                debugInfo.DIFunctionAddSubprogram(codegen.getLlvmFunctionType(descriptor) as debugInfo.LLVMValueRef, diFunction)
+                @Suppress("UNCHECKED_CAST")
+                debugInfo.DIFunctionAddSubprogram(codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef, diFunction)
                 return@getOrPut diFunction!!
             }
         }
