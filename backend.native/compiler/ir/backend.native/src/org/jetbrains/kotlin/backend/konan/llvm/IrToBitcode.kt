@@ -63,7 +63,7 @@ internal fun emitLLVM(context: Context) {
         context.debugInfo.builder = debugInfo.DICreateBuilder(diLlvmModule)
         val outFile = context.config.configuration.get(KonanConfigKeys.BITCODE_FILE)!!
         context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
-
+        context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x8001, outFile, "", "konanc", 0, "", 0)
         context.llvmDeclarations = createLlvmDeclarations(context)
 
         val phaser = PhaseManager(context)
@@ -91,6 +91,10 @@ internal fun emitLLVM(context: Context) {
         }
 
         val outFile = context.config.configuration.get(KonanConfigKeys.BITCODE_FILE)!!
+
+        println("writing bitcode\n")
+        debugInfo.DIFinalize(context.debugInfo.builder)
+        //LLVMDumpModule(llvmModule)
         LLVMWriteBitcodeToFile(llvmModule, outFile)
 }
 
@@ -1570,7 +1574,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                                 fileEntry.getLineNumber(value.startOffset),
                                 fileEntry.getColumnNumber(value.startOffset),
                                 scope.declaration!!.scope() as debugInfo.DIScopeOpaqueRef)
-                    } catch (e:Exception) {
+                    } catch (e:Throwable) {
 
                     }
                 }
@@ -1593,13 +1597,17 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     fun IrFunction.scope():debugInfo.DISubprogramRef {
         return context.debugInfo.subprograms.getOrPut(this) {
             val descriptor = this.descriptor
+            val symbolName = descriptor.symbolName
             memScoped {
                 val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
-                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.module!! as debugInfo.DIScopeOpaqueRef,
-                        descriptor.name.identifier, descriptor.name.identifier,
+                val functionLlvmValue = codegen.functionLlvmValue(descriptor)
+                val linkageName = LLVMGetValueName(functionLlvmValue)!!.toKString()
+                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
+                        linkageName, linkageName,
                         currentFile!!.file(), line, subroutineType, 0, 1, 0)
+                //println("$descriptor : ${LLVMDumpValue(functionLlvmValue)}")
                 @Suppress("UNCHECKED_CAST")
-                debugInfo.DIFunctionAddSubprogram(codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef, diFunction)
+                debugInfo.DIFunctionAddSubprogram(functionLlvmValue as debugInfo.LLVMValueRef, diFunction)
                 return@getOrPut diFunction!!
             }
         }

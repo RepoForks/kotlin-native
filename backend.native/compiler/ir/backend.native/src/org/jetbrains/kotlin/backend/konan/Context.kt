@@ -407,6 +407,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         val subprograms = mutableMapOf<IrFunction, debugInfo.DISubprogramRef>()
         var builder: debugInfo.DIBuilderRef? = null
         var module: debugInfo.DIModuleRef? = null
+        var compilationModule: debugInfo.DICompileUnitRef? = null
     }
 }
 
