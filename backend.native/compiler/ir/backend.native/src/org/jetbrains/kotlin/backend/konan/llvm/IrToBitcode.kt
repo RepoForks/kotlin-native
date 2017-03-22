@@ -63,7 +63,15 @@ internal fun emitLLVM(context: Context) {
         context.debugInfo.builder = debugInfo.DICreateBuilder(diLlvmModule)
         val outFile = context.config.configuration.get(KonanConfigKeys.BITCODE_FILE)!!
         context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
-        context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x8001, outFile, "", "konanc", 0, "", 0)
+        context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x8042, outFile, "", "konanc", 0, "", 2)
+
+        val version = "Dwarf Version"
+        val dwarfVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(version, version.length)!!, Int32(2).llvm).toCValues(), 3)
+        val debugInfoVersion = "Debug Info Version"
+        val nodeDebugInfoVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(debugInfoVersion, debugInfoVersion.length)!!, Int32(700000003).llvm).toCValues(), 3)
+        LLVMAddNamedMetadataOperand(llvmModule, "llvm.module.flags", dwarfVersion)
+        LLVMAddNamedMetadataOperand(llvmModule, "llvm.module.flags", nodeDebugInfoVersion)
+
         context.llvmDeclarations = createLlvmDeclarations(context)
 
         val phaser = PhaseManager(context)
@@ -1566,16 +1574,16 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 evaluateFunctionCall(
                         value as IrCall, args, resultLifetime(value))
                 currentFile?.apply {
-                    try {
                         val scope = currentCodeContext.functionScope() as FunctionScope
 
                         val diBuilder = codegen.builder as debugInfo.LLVMBuilderRef
-                        debugInfo.LLVMBuilderSetDebugLocation(diBuilder,
-                                fileEntry.getLineNumber(value.startOffset),
-                                fileEntry.getColumnNumber(value.startOffset),
-                                scope.declaration!!.scope() as debugInfo.DIScopeOpaqueRef)
-                    } catch (e:Throwable) {
-
+                    if (scope.declaration != null) {
+                        try {
+                            debugInfo.LLVMBuilderSetDebugLocation(diBuilder,
+                                    fileEntry.getLineNumber(value.startOffset),
+                                    fileEntry.getColumnNumber(value.startOffset),
+                                    scope.declaration.scope() as debugInfo.DIScopeOpaqueRef)
+                        } catch (e:Exception) {}
                     }
                 }
                 return llvmValue
@@ -1597,12 +1605,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     fun IrFunction.scope():debugInfo.DISubprogramRef {
         return context.debugInfo.subprograms.getOrPut(this) {
             val descriptor = this.descriptor
-            val symbolName = descriptor.symbolName
             memScoped {
                 val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
                 val functionLlvmValue = codegen.functionLlvmValue(descriptor)
                 val linkageName = LLVMGetValueName(functionLlvmValue)!!.toKString()
-                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
+                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, /* context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef */ null,
                         linkageName, linkageName,
                         currentFile!!.file(), line, subroutineType, 0, 1, 0)
                 //println("$descriptor : ${LLVMDumpValue(functionLlvmValue)}")
