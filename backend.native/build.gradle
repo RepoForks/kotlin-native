@@ -260,6 +260,7 @@ targetList.each { target ->
         inputs.dir(project(':runtime').file('src/launcher/kotlin'))
         outputs.file(project(':runtime').file("build/${target}/start.kt.bc"))
 
+        environment DYLD_LIBRARY_PATH :"${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
         dependsOn ":runtime:${target}Runtime", "${target}Stdlib"
     }
 }
@@ -275,7 +276,7 @@ task jars(type: Jar) {
          'build/classes/compiler', 
          'build/classes/hashInteropStubs', 
          'build/classes/llvmInteropStubs',
-         'build/classes/debugInfoStubs'
+         'build/classes/debugInfoInteropStubs'
 
     dependsOn 'build', ':runtime:hostRuntime', 'external_jars'
 }
