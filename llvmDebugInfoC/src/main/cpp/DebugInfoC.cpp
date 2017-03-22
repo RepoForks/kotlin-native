@@ -89,7 +89,12 @@ extern "C" {
   }
 
   void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp) {
-    llvm::cast<llvm::Function>(llvm::unwrap(fn))->setSubprogram(llvm::unwrap(sp));
+    auto f = llvm::cast<llvm::Function>(llvm::unwrap(fn));
+    auto dsp = llvm::cast<llvm::DISubprogram>(llvm::unwrap(sp));
+    f->setSubprogram(dsp);
+    if (!dsp->describes(f)) {
+      fprintf(stderr, "error!!! f:%s, sp:%s\n", f->getName(), dsp->getLinkageName()); 
+    }
   }
 
   void LLVMBuilderSetDebugLocation(LLVMBuilderRef builder, unsigned line,
