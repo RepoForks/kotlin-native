@@ -154,7 +154,7 @@ kotlinNativeInterop {
    }
 
     debugInfo {
-        dependsOn ":llvmDebugInfoC:debugInfoSharedLibrary"
+        dependsOn ":llvmDebugInfoC:debugInfoStaticLibrary"
         defFile '../llvmDebugInfoC/debugInfo.def'
         compilerOpts "-fPIC", "-g", "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include"
         //linkerOpts "-Wl,-dead_strip", "-Wl,-flat_namespace", "-Wl,-undefined", "-Wl,suppress","-L$llvmDir/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
@@ -219,7 +219,7 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs "-ea", 
             "-Dkonan.home=${project.parent.file('dist')}",
-            "-Djava.library.path=${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
+            "-Djava.library.path=${project.buildDir}/nativelibs"
         args('-output', project(':runtime').file("build/${target}/stdlib.kt.bc"), 
             '-nolink', '-nostdlib', '-ea',
             '-target', target,
@@ -235,8 +235,6 @@ targetList.each { target ->
         inputs.dir(project(':Interop:Runtime').file('src/native/kotlin'))
         outputs.file(project(':runtime').file("build/${target}/stdlib.kt.bc"))
 
-        environment DYLD_LIBRARY_PATH :"${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
-
         dependsOn ":runtime:${target}Runtime"
     }
 }
@@ -247,7 +245,7 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs "-ea", 
             "-Dkonan.home=${project.parent.file('dist')}",
-            "-Djava.library.path=${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
+            "-Djava.library.path=${project.buildDir}/nativelibs"
         args('-output', project(':runtime').file("build/${target}/start.kt.bc"), 
             '-nolink', '-nostdlib', '-ea',
             '-target', target,
@@ -260,7 +258,6 @@ targetList.each { target ->
         inputs.dir(project(':runtime').file('src/launcher/kotlin'))
         outputs.file(project(':runtime').file("build/${target}/start.kt.bc"))
 
-        environment DYLD_LIBRARY_PATH :"${project.buildDir}/nativelibs:${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/shared"
         dependsOn ":runtime:${target}Runtime", "${target}Stdlib"
     }
 }
