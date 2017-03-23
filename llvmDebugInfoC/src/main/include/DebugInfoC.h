@@ -41,6 +41,7 @@ extern "C" {
 
   void DIFunctionAddSubprogram(LLVMValueRef fn, DISubprogramRef sp);
   void LLVMBuilderSetDebugLocation(LLVMBuilderRef builder, unsigned line, unsigned col, DIScopeOpaqueRef scope);
+  const char *DIGetSubprogramLinkName(DISubprogramRef sp);
 # ifdef __cplusplus
 }
 # endif

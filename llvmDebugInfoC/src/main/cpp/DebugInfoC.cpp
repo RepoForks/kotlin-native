@@ -99,7 +99,14 @@ extern "C" {
 
   void LLVMBuilderSetDebugLocation(LLVMBuilderRef builder, unsigned line,
                                    unsigned col, DIScopeOpaqueRef scope) {
-    llvm::unwrap(builder)->SetCurrentDebugLocation(llvm::DebugLoc::get(line, col, llvm::unwrap(scope)));
+    auto sp = llvm::unwrap(scope);
+    auto llvmBuilder = llvm::unwrap(builder);
+    llvmBuilder->SetCurrentDebugLocation(
+      llvm::DILocation::get(llvmBuilder->getContext(), line, col, sp, nullptr));
+  }
+
+  const char *DIGetSubprogramLinkName(DISubprogramRef sp) {
+    return llvm::unwrap(sp)->getLinkageName().str().c_str();
   }
 }
 
