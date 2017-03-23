@@ -37,7 +37,6 @@ import org.jetbrains.kotlin.ir.util.getArguments
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.psi2ir.PsiSourceManager
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
@@ -68,7 +67,7 @@ internal fun emitLLVM(context: Context) {
         val version = "Dwarf Version"
         val dwarfVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(version, version.length)!!, Int32(2).llvm).toCValues(), 3)
         val debugInfoVersion = "Debug Info Version"
-        val nodeDebugInfoVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(debugInfoVersion, debugInfoVersion.length)!!, Int32(700000003).llvm).toCValues(), 3)
+        val nodeDebugInfoVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(debugInfoVersion, debugInfoVersion.length)!!, Int32(3).llvm).toCValues(), 3)
         LLVMAddNamedMetadataOperand(llvmModule, "llvm.module.flags", dwarfVersion)
         LLVMAddNamedMetadataOperand(llvmModule, "llvm.module.flags", nodeDebugInfoVersion)
 
@@ -523,6 +522,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }.toMap()
     }
 
+    private var urrentFunction:IrFunction? = null
+
     override fun visitFunction(declaration: IrFunction) {
         context.log("visitFunction                  : ${ir2string(declaration)}")
         val body = declaration.body
@@ -531,6 +532,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         if (declaration.descriptor.isExternal)                    return
         if (body == null)                                         return
 
+        currentFunction = declaration
         codegen.prologue(declaration.descriptor)
 
         using(FunctionScope(declaration)) {
@@ -553,6 +555,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
 
         codegen.epilogue()
+        currentFunction = null
 
         if (context.shouldVerifyBitCode())
             verifyModule(context.llvmModule!!,
@@ -1574,17 +1577,27 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 evaluateFunctionCall(
                         value as IrCall, args, resultLifetime(value))
                 currentFile?.apply {
-                        val scope = currentCodeContext.functionScope() as FunctionScope
 
-                        val diBuilder = codegen.builder as debugInfo.LLVMBuilderRef
-                    if (scope.declaration != null) {
+
+                    if (currentFunction != null) {
+                        val scopeFunctionIr = (currentCodeContext.functionScope() as FunctionScope).declaration
+                        val inFunctionScope = currentFunction == scopeFunctionIr
+                        if (!inFunctionScope)
+                            println("here ..... cf:${currentFunction!!.descriptor} cc:${scopeFunctionIr?.descriptor}")
+                        else
+                            throw RuntimeException("here ..... cf:${currentFunction!!.descriptor} cc:${scopeFunctionIr?.descriptor}")
                         try {
-                            debugInfo.LLVMBuilderSetDebugLocation(diBuilder,
+                            val diScope = currentFunction!!.scope()
+
+                            debugInfo.LLVMBuilderSetDebugLocation(
+                                    codegen.builder as debugInfo.LLVMBuilderRef,
                                     fileEntry.getLineNumber(value.startOffset),
                                     fileEntry.getColumnNumber(value.startOffset),
-                                    scope.declaration.scope() as debugInfo.DIScopeOpaqueRef)
-                        } catch (e:Exception) {}
+                                    diScope as debugInfo.DIScopeOpaqueRef)
+                        } catch (e: Exception) {
+                        }
                     }
+
                 }
                 return llvmValue
             }
@@ -1603,18 +1616,18 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
     fun IrFunction.scope():debugInfo.DISubprogramRef {
-        return context.debugInfo.subprograms.getOrPut(this) {
-            val descriptor = this.descriptor
+        //val descriptor = this.descriptor
+        return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
                 val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
-                val functionLlvmValue = codegen.functionLlvmValue(descriptor)
-                val linkageName = LLVMGetValueName(functionLlvmValue)!!.toKString()
-                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, /* context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef */ null,
+                val functionLlvmValue = codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef
+                val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
+                val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
                         currentFile!!.file(), line, subroutineType, 0, 1, 0)
-                //println("$descriptor : ${LLVMDumpValue(functionLlvmValue)}")
+                //println("$linkageName\t$descriptor")
                 @Suppress("UNCHECKED_CAST")
-                debugInfo.DIFunctionAddSubprogram(functionLlvmValue as debugInfo.LLVMValueRef, diFunction)
+                debugInfo.DIFunctionAddSubprogram(functionLlvmValue , diFunction)
                 return@getOrPut diFunction!!
             }
         }
