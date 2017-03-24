@@ -105,6 +105,10 @@ extern "C" {
       llvm::DILocation::get(llvmBuilder->getContext(), line, col, sp, nullptr));
   }
 
+  LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder) {
+    return llvm::wrap(llvm::unwrap(builder)->GetInsertBlock()->getParent());
+  } 
+
   const char *DIGetSubprogramLinkName(DISubprogramRef sp) {
     return llvm::unwrap(sp)->getLinkageName().str().c_str();
   }
