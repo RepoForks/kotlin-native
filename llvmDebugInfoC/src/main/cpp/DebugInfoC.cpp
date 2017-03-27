@@ -103,14 +103,33 @@ extern "C" {
     auto llvmBuilder = llvm::unwrap(builder);
     llvmBuilder->SetCurrentDebugLocation(
       llvm::DILocation::get(llvmBuilder->getContext(), line, col, sp, nullptr));
+    auto sp0 = llvmBuilder->getCurrentDebugLocation()->getScope();
+    fprintf(stderr, "--------------------------------------------------------------------------------\n");
+    sp0->dump();
+    fprintf(stderr, "--------------------------------------------------------------------------------\n");
+
+    assert(sp == sp0);
   }
 
   LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder) {
     return llvm::wrap(llvm::unwrap(builder)->GetInsertBlock()->getParent());
   } 
 
+  const char* LLVMBuilderGetCurrentBbName(LLVMBuilderRef builder) {
+    return llvm::unwrap(builder)->GetInsertBlock()->getName().str().c_str();
+  } 
+
+  
   const char *DIGetSubprogramLinkName(DISubprogramRef sp) {
     return llvm::unwrap(sp)->getLinkageName().str().c_str();
+  }
+
+  int DISubprogramDescribesFunction(DISubprogramRef sp, LLVMValueRef fn) {
+    return llvm::unwrap(sp)->describes(llvm::cast<llvm::Function>(llvm::unwrap(fn)));
+  }
+
+  void DIScopeDump(DIScopeOpaqueRef scope) {
+    llvm::unwrap(scope)->dump();
   }
 }
 
