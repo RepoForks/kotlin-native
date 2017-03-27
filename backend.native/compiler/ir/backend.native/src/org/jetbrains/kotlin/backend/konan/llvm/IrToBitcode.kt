@@ -16,10 +16,12 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
-import debugInfo.LLVMBuilderGetCurrentFunction
-import debugInfo.LLVMBuilderRef
 import kotlinx.cinterop.*
 import llvm.*
+import llvm.LLVMBasicBlockRef
+import llvm.LLVMLinkage
+import llvm.LLVMModuleRef
+import llvm.LLVMTypeKind
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
@@ -529,7 +531,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }.toMap()
     }
 
-    var functionBody = false
     override fun visitFunction(declaration: IrFunction) {
         context.log("visitFunction                  : ${ir2string(declaration)}{")
         val body = declaration.body
@@ -541,7 +542,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         using(FunctionScope(declaration)) {
             codegen.prologue(declaration.descriptor)
 
-            functionBody = true
             using(VariableScope()) {
                 when (body) {
                     is IrBlockBody -> body.statements.forEach { generateStatement(it) }
@@ -556,11 +556,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 else
                     codegen.unreachable()
             }
-            functionBody = false
 
             codegen.epilogue()
         }
 
+        LLVMDumpValue(codegen.llvmFunction(declaration.descriptor))
         if (context.shouldVerifyBitCode())
             verifyModule(context.llvmModule!!,
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
@@ -1578,36 +1578,44 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 return delegatingConstructorCall(value.descriptor, args)
 
             value.descriptor is FunctionDescriptor -> {
-                val diScope = currentFile?.let {  (currentCodeContext.functionScope() as? FunctionScope)?.declaration?.scope() }
-                dumpCurrentLlvmFunction()
                 val llvmValue =
                 evaluateFunctionCall(
                         value as IrCall, args, resultLifetime(value))
                 currentFile?.apply {
                     val functionScope = currentCodeContext.functionScope() as? FunctionScope
-                    if (functionScope != null && functionBody) {
+                    if (functionScope != null && functionScope.declaration != null && !functionScope.declaration.descriptor.name.asString().contains('$') && !functionScope.declaration.descriptor.isInline) {
+                        val diScope = functionScope.declaration.scope()
                         try {
-                            dumpCurrentLlvmFunction()
+                            chk(functionScope.declaration.descriptor, diScope)
+                            println("call ${value.descriptor} @ ${functionScope.declaration.descriptor}")
+                            @Suppress("UNCHECKED_CAST")
+                            debugInfo.DIScopeDump(diScope as debugInfo.DIScopeOpaqueRef)
+                            val col = fileEntry.getColumnNumber(value.startOffset)
+                            @Suppress("UNCHECKED_CAST")
                             debugInfo.LLVMBuilderSetDebugLocation(
                                     codegen.builder as debugInfo.LLVMBuilderRef,
                                     fileEntry.getLineNumber(value.startOffset),
-                                    fileEntry.getColumnNumber(value.startOffset),
+                                    if (col < 0) 0 else col,
                                     diScope as debugInfo.DIScopeOpaqueRef)
+                            chk(functionScope.declaration.descriptor, diScope)
                         } catch (ignored: Exception) {}
                     }
                 }
                 return llvmValue
             }
             else -> {
-                TODO("${ir2string(value)}")
+                TODO(ir2string(value))
             }
         }
     }
 
-    private fun dumpCurrentLlvmFunction() {
-        val currentFunction = LLVMBuilderGetCurrentFunction(codegen.builder as LLVMBuilderRef)
-        val currentFunctionName = LLVMGetValueName(currentFunction as LLVMValueRef)!!.toKString()
-        context.log("current function (llvm):$currentFunctionName")
+    private fun chk(functionDescriptor: FunctionDescriptor, diScope: debugInfo.DISubprogramRef) {
+        @Suppress("UNCHECKED_CAST")
+        val currentFunction = debugInfo.LLVMBuilderGetCurrentFunction(codegen.builder as debugInfo.LLVMBuilderRef)
+        assert(currentFunction == codegen.llvmFunction(functionDescriptor))
+
+        @Suppress("UNCHECKED_CAST")
+        assert(debugInfo.DISubprogramDescribesFunction(diScope, currentFunction as debugInfo.LLVMValueRef) != 0)
     }
 
     fun IrFile.file():debugInfo.DIFileRef {
@@ -1617,13 +1625,16 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
     val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
     fun IrFunction.scope():debugInfo.DISubprogramRef {
         //val descriptor = this.descriptor
         return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
                 val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
+                @Suppress("UNCHECKED_CAST")
                 val functionLlvmValue = codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef
+                @Suppress("UNCHECKED_CAST")
                 val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
