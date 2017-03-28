@@ -13,7 +13,28 @@ model {
       }
       binaries.all {
         cppCompiler.args "--std=c++11", "-g", "-I${llvmDir}/include", "-I${projectDir}/src/main/include"
-	    linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
+	linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses"
+      }
+    }
+    
+    demosimple(NativeExecutableSpec) {
+      // Flamenko!!! for some reason it (gradle) can't find debugInfoStaticLibrary task in llvmDebugInfoC
+      // so user have to manually run:
+      // ./gradlew :llvmDebugInfoC:debugInfoStaticLibrary before building demo.
+      //dependsOn project(":debugInfoStaticLibrary")
+      sources{
+        /* for some reasons NativeExecutable doesn't accept c as language source*/
+        cpp {
+	   source {
+             srcDirs "src/demo-simple/c"
+           }
+	}
+      }
+      binaries.all {
+         cppCompiler.args "-g", "-I${llvmDir}/include", "-I${projectDir}/src/main/include",
+	                  "-xc" // build it as C forcebly
+	 linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport", "-lncurses",
+	             "-L${buildDir}/libs/debugInfo/static", "-ldebugInfo"
       }
     }
   }
