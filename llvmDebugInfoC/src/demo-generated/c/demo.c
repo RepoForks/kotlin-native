@@ -31,15 +31,49 @@ create_function(const char* name) {
   return LLVMAddFunction(module, name, functionType);
 }
 
+static void
+create_function_with_entry(const char *name) {
+  LLVMValueRef function = create_function(name);
+  LLVMBasicBlockRef bb = LLVMAppendBasicBlock(function, "entry");
+  LLVMPositionBuilderAtEnd(llvm_builder, bb);
+}
+
+#define FOO_FUNCTION "foo"
+#define MAIN_FUNCTION "main"
+#define MAIN_CALLER_FOO_FUNCTION "main$caller$foo"
+
+
+static void
+create_foo() {
+  create_function_with_entry(FOO_FUNCTION);
+  LLVMBuildRet(llvm_builder, LLVMConstInt(LLVMInt32Type(), 0x0badbabel, 0));
+}
+
+static void
+create_main_caller_foo() {
+  create_function_with_entry(MAIN_CALLER_FOO_FUNCTION);
+  LLVMValueRef fn = LLVMGetNamedFunction(module, FOO_FUNCTION);
+  LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+}
+
+static void
+create_main() {
+  create_function_with_entry(MAIN_FUNCTION);
+  LLVMValueRef fn = LLVMGetNamedFunction(module, MAIN_CALLER_FOO_FUNCTION);
+  LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+}
+
+
 int
 main() {
   module       = LLVMModuleCreateWithName("test");
   di_builder   = DICreateBuilder(module);
   llvm_builder = LLVMCreateBuilderInContext(LLVMGetModuleContext(module));
-  LLVMValueRef function_foo = create_function("foo");
-  LLVMBasicBlockRef bb = LLVMAppendBasicBlock(function_foo, "entry");
-  LLVMPositionBuilderAtEnd(llvm_builder, bb);
-  LLVMBuildRet(llvm_builder, LLVMConstInt(LLVMInt32Type(), 0x0badbabel, 0));
+
+  create_foo();
+  create_main_caller_foo();
+  create_main();
+
   LLVMVerifyModule(module, LLVMPrintMessageAction, NULL);
   LLVMDumpModule(module);
 }
