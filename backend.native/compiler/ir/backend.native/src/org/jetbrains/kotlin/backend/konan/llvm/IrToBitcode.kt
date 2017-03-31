@@ -1627,20 +1627,19 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     @Suppress("UNCHECKED_CAST")
     val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
+
+    @Suppress("UNCHECKED_CAST")
     fun IrFunction.scope():debugInfo.DISubprogramRef {
         //val descriptor = this.descriptor
         return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
-                val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type)[0].ptr, 1)
-                @Suppress("UNCHECKED_CAST")
+                val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type), 1)
                 val functionLlvmValue = codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef
-                @Suppress("UNCHECKED_CAST")
                 val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
                         currentFile!!.file(), line, subroutineType, 0, 1, 0)
                 //println("$linkageName\t$descriptor")
-                @Suppress("UNCHECKED_CAST")
                 debugInfo.DIFunctionAddSubprogram(functionLlvmValue , diFunction)
                 diFunction!!
             }
