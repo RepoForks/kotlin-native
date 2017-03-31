@@ -78,6 +78,7 @@ internal fun emitLLVM(context: Context) {
             irModule.acceptVoid(MetadatorVisitor(context))
         }
 
+        @Suppress("UNCHECKED_CAST")
         context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
         context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x8042, outFile, "", "konanc", 0, "", 2)
 
@@ -106,7 +107,6 @@ internal fun emitLLVM(context: Context) {
             }
         }
 
-        val outFile = context.config.configuration.get(KonanConfigKeys.BITCODE_FILE)!!
 
         println("writing bitcode\n")
         debugInfo.DIFinalize(context.debugInfo.builder)
