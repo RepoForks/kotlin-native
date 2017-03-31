@@ -21,21 +21,28 @@
  *     return(5:14)
  */
 
-LLVMModuleRef  module;
-DIBuilderRef   di_builder;
-LLVMBuilderRef llvm_builder;
+LLVMModuleRef       module;
+DIBuilderRef        di_builder;
+LLVMBuilderRef      llvm_builder;
+DICompileUnitRef    di_compile_unit;
+DIFileRef           file;
+DISubroutineTypeRef subroutine_type;
 
 static LLVMValueRef
 create_function(const char* name) {
-  LLVMValueRef functionType = LLVMFunctionType(LLVMVoidType(), NULL, 0, 0);
-  return LLVMAddFunction(module, name, functionType);
+  LLVMTypeRef function_type = LLVMFunctionType(LLVMVoidType(), NULL, 0, 0);
+  return LLVMAddFunction(module, name, function_type);
 }
 
-static void
-create_function_with_entry(const char *name) {
+static DISubprogramRef 
+create_function_with_entry(const char *name, int line) {
   LLVMValueRef function = create_function(name);
   LLVMBasicBlockRef bb = LLVMAppendBasicBlock(function, "entry");
+  DISubprogramRef di_function = DICreateFunction(di_builder, di_compile_unit, name, name, file, line,
+                   subroutine_type, 0, 1, 0);
   LLVMPositionBuilderAtEnd(llvm_builder, bb);
+  DIFunctionAddSubprogram(function, di_function);
+  return di_function;
 }
 
 #define FOO_FUNCTION "foo"
@@ -45,36 +52,45 @@ create_function_with_entry(const char *name) {
 
 static void
 create_foo() {
-  create_function_with_entry(FOO_FUNCTION);
+  DISubprogramRef di = create_function_with_entry(FOO_FUNCTION, 5);
+  LLVMBuilderSetDebugLocation(llvm_builder, 5, 14, di);
   LLVMBuildRetVoid(llvm_builder);
 }
 
 static void
 create_main_caller_foo() {
-  create_function_with_entry(MAIN_CALLER_FOO_FUNCTION);
-  LLVMValueRef fn = LLVMGetNamedFunction(module, FOO_FUNCTION);
+  DISubprogramRef di = create_function_with_entry(MAIN_CALLER_FOO_FUNCTION, 2);
+  LLVMValueRef fn    = LLVMGetNamedFunction(module, FOO_FUNCTION);
+  LLVMBuilderSetDebugLocation(llvm_builder, 5, 2, di);
   LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
   LLVMBuildRetVoid(llvm_builder);
 }
 
 static void
 create_main() {
-  create_function_with_entry(MAIN_FUNCTION);
-  LLVMValueRef fn = LLVMGetNamedFunction(module, MAIN_CALLER_FOO_FUNCTION);
+  DISubprogramRef di = create_function_with_entry(MAIN_FUNCTION, 1);
+  LLVMValueRef     fn = LLVMGetNamedFunction(module, MAIN_CALLER_FOO_FUNCTION);
+  LLVMBuilderSetDebugLocation(llvm_builder, 2, 12, di);
   LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+  LLVMBuilderSetDebugLocation(llvm_builder, 3, 4, di);
   LLVMBuildRetVoid(llvm_builder);
 }
 
 
 int
 main() {
-  module       = LLVMModuleCreateWithName("test");
-  di_builder   = DICreateBuilder(module);
-  llvm_builder = LLVMCreateBuilderInContext(LLVMGetModuleContext(module));
-
+  module          = LLVMModuleCreateWithName("test");
+  di_builder      = DICreateBuilder(module);
+  di_compile_unit = DICreateCompilationUnit(di_builder, 4,
+                                            "<stdin>", "",
+                                            "konanc", 0, "", 0);
+  llvm_builder    = LLVMCreateBuilderInContext(LLVMGetModuleContext(module));
+  file            = DICreateFile(di_builder, "<stdin>", "");
+  subroutine_type = DICreateSubroutineType(di_builder, NULL, 0);
   create_foo();
   create_main_caller_foo();
   create_main();
+  DIFinalize(di_builder);
 
   LLVMVerifyModule(module, LLVMPrintMessageAction, NULL);
   LLVMDumpModule(module);
