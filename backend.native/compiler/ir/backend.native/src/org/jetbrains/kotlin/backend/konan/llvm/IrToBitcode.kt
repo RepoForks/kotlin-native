@@ -16,6 +16,10 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
+import debugInfo.DIScopeDump
+import debugInfo.DIScopeOpaqueRef
+import debugInfo.LLVMBuilderRef
+import debugInfo.LLVMBuilderSetDebugLocation
 import kotlinx.cinterop.*
 import llvm.*
 import llvm.LLVMBasicBlockRef
@@ -110,7 +114,6 @@ internal fun emitLLVM(context: Context) {
 
         println("writing bitcode\n")
         debugInfo.DIFinalize(context.debugInfo.builder)
-        //LLVMDumpModule(llvmModule)
         LLVMWriteBitcodeToFile(llvmModule, outFile)
 }
 
@@ -540,6 +543,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         if (body == null)                                         return
 
         using(FunctionScope(declaration)) {
+            debugLocation(declaration)
             codegen.prologue(declaration.descriptor)
 
             using(VariableScope()) {
@@ -560,7 +564,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             codegen.epilogue()
         }
 
-        LLVMDumpValue(codegen.llvmFunction(declaration.descriptor))
         if (context.shouldVerifyBitCode())
             verifyModule(context.llvmModule!!,
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
@@ -1578,33 +1581,34 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 return delegatingConstructorCall(value.descriptor, args)
 
             value.descriptor is FunctionDescriptor -> {
-                val llvmValue =
-                evaluateFunctionCall(
+                debugLocation(value)
+                return evaluateFunctionCall(
                         value as IrCall, args, resultLifetime(value))
-                currentFile?.apply {
-                    val functionScope = currentCodeContext.functionScope() as? FunctionScope
-                    if (functionScope != null && functionScope.declaration != null && !functionScope.declaration.descriptor.name.asString().contains('$') && !functionScope.declaration.descriptor.isInline) {
-                        val diScope = functionScope.declaration.scope()
-                        try {
-                            chk(functionScope.declaration.descriptor, diScope)
-                            println("call ${value.descriptor} @ ${functionScope.declaration.descriptor}")
-                            @Suppress("UNCHECKED_CAST")
-                            debugInfo.DIScopeDump(diScope as debugInfo.DIScopeOpaqueRef)
-                            val col = fileEntry.getColumnNumber(value.startOffset)
-                            @Suppress("UNCHECKED_CAST")
-                            debugInfo.LLVMBuilderSetDebugLocation(
-                                    codegen.builder as debugInfo.LLVMBuilderRef,
-                                    fileEntry.getLineNumber(value.startOffset),
-                                    if (col < 0) 0 else col,
-                                    diScope as debugInfo.DIScopeOpaqueRef)
-                            chk(functionScope.declaration.descriptor, diScope)
-                        } catch (ignored: Exception) {}
-                    }
-                }
-                return llvmValue
             }
             else -> {
                 TODO(ir2string(value))
+            }
+        }
+    }
+
+    private fun debugLocation(element: IrElement) {
+        currentFile?.apply {
+            val functionScope = currentCodeContext.functionScope() as? FunctionScope ?: return
+            val scope = functionScope.declaration ?: return
+            val diScope = scope.scope()
+            try {
+                //chk(scope.descriptor, diScope)
+                @Suppress("UNCHECKED_CAST")
+                (DIScopeDump(diScope as DIScopeOpaqueRef))
+                val col = fileEntry.getColumnNumber(element.startOffset)
+                @Suppress("UNCHECKED_CAST")
+                (LLVMBuilderSetDebugLocation(
+                        codegen.builder as LLVMBuilderRef,
+                        fileEntry.getLineNumber(element.startOffset),
+                        if (col < 0) 0 else col,
+                        diScope as DIScopeOpaqueRef))
+                //qchk(scope.descriptor, diScope)
+            } catch (ignored: Exception) {
             }
         }
     }
