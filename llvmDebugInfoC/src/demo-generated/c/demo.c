@@ -46,7 +46,7 @@ create_function_with_entry(const char *name) {
 static void
 create_foo() {
   create_function_with_entry(FOO_FUNCTION);
-  LLVMBuildRet(llvm_builder, LLVMConstInt(LLVMInt32Type(), 0x0badbabel, 0));
+  LLVMBuildRetVoid(llvm_builder);
 }
 
 static void
@@ -54,6 +54,7 @@ create_main_caller_foo() {
   create_function_with_entry(MAIN_CALLER_FOO_FUNCTION);
   LLVMValueRef fn = LLVMGetNamedFunction(module, FOO_FUNCTION);
   LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+  LLVMBuildRetVoid(llvm_builder);
 }
 
 static void
@@ -61,6 +62,7 @@ create_main() {
   create_function_with_entry(MAIN_FUNCTION);
   LLVMValueRef fn = LLVMGetNamedFunction(module, MAIN_CALLER_FOO_FUNCTION);
   LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+  LLVMBuildRetVoid(llvm_builder);
 }
 
 
