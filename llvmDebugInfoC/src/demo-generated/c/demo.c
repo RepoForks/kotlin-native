@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <llvm-c/Analysis.h>
 #include <DebugInfoC.h>
 /**
  * this demo produces bitcode for case when several functions generated from one source code.
@@ -26,7 +28,7 @@ LLVMBuilderRef llvm_builder;
 static LLVMValueRef
 create_function(const char* name) {
   LLVMValueRef functionType = LLVMFunctionType(LLVMVoidType(), NULL, 0, 0);
-  return LLVMAddFunction(module, name, functionType)
+  return LLVMAddFunction(module, name, functionType);
 }
 
 int
@@ -34,5 +36,10 @@ main() {
   module       = LLVMModuleCreateWithName("test");
   di_builder   = DICreateBuilder(module);
   llvm_builder = LLVMCreateBuilderInContext(LLVMGetModuleContext(module));
+  LLVMValueRef function_foo = create_function("foo");
+  LLVMBasicBlockRef bb = LLVMAppendBasicBlock(function_foo, "entry");
+  LLVMPositionBuilderAtEnd(llvm_builder, bb);
+  LLVMBuildRet(llvm_builder, LLVMConstInt(LLVMInt32Type(), 0x0badbabel, 0));
+  LLVMVerifyModule(module, LLVMPrintMessageAction, NULL);
   LLVMDumpModule(module);
 }
