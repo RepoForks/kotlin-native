@@ -63,6 +63,7 @@ create_main_caller_foo() {
   LLVMValueRef fn    = LLVMGetNamedFunction(module, FOO_FUNCTION);
   LLVMBuilderSetDebugLocation(llvm_builder, 5, 2, di);
   LLVMBuildCall(llvm_builder, fn, NULL, 0, "");
+  LLVMBuilderResetDebugLocation(llvm_builder);
   LLVMBuildRetVoid(llvm_builder);
 }
 
