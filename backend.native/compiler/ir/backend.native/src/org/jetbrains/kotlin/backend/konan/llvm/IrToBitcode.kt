@@ -70,9 +70,6 @@ internal fun emitLLVM(context: Context) {
             irModule.acceptVoid(RTTIGeneratorVisitor(context))
         }
 
-        phaser.phase(KonanPhase.METADATOR) {
-            irModule.acceptVoid(MetadatorVisitor(context))
-        }
 
         @Suppress("UNCHECKED_CAST")
         context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
