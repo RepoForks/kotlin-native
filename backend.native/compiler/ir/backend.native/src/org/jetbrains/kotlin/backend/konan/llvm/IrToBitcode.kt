@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
-import debugInfo.DIScopeOpaqueRef
 import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
@@ -1173,19 +1172,22 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
 
     private fun evaluateTypeOperator(value: IrTypeOperatorCall): LLVMValueRef {
-        when (value.operator) {
-            IrTypeOperator.CAST                      -> return evaluateCast(value)
-            IrTypeOperator.IMPLICIT_INTEGER_COERCION -> return evaluateIntegerCoercion(value)
-            IrTypeOperator.IMPLICIT_CAST             -> return evaluateExpression(value.argument)
-            IrTypeOperator.IMPLICIT_NOTNULL          -> TODO("${ir2string(value)}")
-            IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {
-                evaluateExpression(value.argument)
-                return codegen.theUnitInstanceRef.llvm
+        debugInfo(value) {
+            when (value.operator) {
+                IrTypeOperator.CAST -> return evaluateCast(value)
+                IrTypeOperator.IMPLICIT_INTEGER_COERCION -> return evaluateIntegerCoercion(value)
+                IrTypeOperator.IMPLICIT_CAST             -> return evaluateExpression(value.argument)
+                IrTypeOperator.IMPLICIT_NOTNULL          -> TODO(ir2string(value))
+                IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {
+                    evaluateExpression(value.argument)
+                    return codegen.theUnitInstanceRef.llvm
+                }
+                IrTypeOperator.SAFE_CAST                 -> throw IllegalStateException("safe cast wasn't lowered")
+                IrTypeOperator.INSTANCEOF                -> return evaluateInstanceOf(value)
+                IrTypeOperator.NOT_INSTANCEOF            -> return evaluateNotInstanceOf(value)
             }
-            IrTypeOperator.SAFE_CAST                 -> throw IllegalStateException("safe cast wasn't lowered")
-            IrTypeOperator.INSTANCEOF                -> return evaluateInstanceOf(value)
-            IrTypeOperator.NOT_INSTANCEOF            -> return evaluateNotInstanceOf(value)
         }
+        TODO()
     }
 
     //-------------------------------------------------------------------------//
@@ -1574,21 +1576,20 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         compileTimeEvaluate(value, args)?.let { return it }
 
-        when {
-            value is IrDelegatingConstructorCall ->
-                return delegatingConstructorCall(value.descriptor, args)
+        debugInfo(value) {
+            when {
+                value is IrDelegatingConstructorCall   ->
+                    return delegatingConstructorCall(value.descriptor, args)
 
-            value.descriptor is FunctionDescriptor -> {
-                debugLocation(value)
-                val v = evaluateFunctionCall(
+                value.descriptor is FunctionDescriptor ->
+                    return evaluateFunctionCall(
                         value as IrCall, args, resultLifetime(value))
-                codegen.resetDebugLocation()
-                return v
-            }
-            else -> {
-                TODO(ir2string(value))
+                else -> {
+                    TODO(ir2string(value))
+                }
             }
         }
+        TODO(ir2string(value))
     }
 
     private fun debugLocation(element: IrElement) {
@@ -1622,6 +1623,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
+    private inline fun <T> debugInfo(element: IrElement, body:() -> T) {
+        debugLocation(element)
+        body()
+        codegen.resetDebugLocation()
+    }
 
     fun IrFile.file():debugInfo.DIFileRef {
         return context.debugInfo.files.getOrPut(this) {
