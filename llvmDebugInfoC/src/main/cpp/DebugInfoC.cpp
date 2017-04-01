@@ -103,12 +103,10 @@ extern "C" {
     auto llvmBuilder = llvm::unwrap(builder);
     llvmBuilder->SetCurrentDebugLocation(
       llvm::DILocation::get(llvmBuilder->getContext(), line, col, sp, nullptr));
-    auto sp0 = llvmBuilder->getCurrentDebugLocation()->getScope();
-    fprintf(stderr, "--------------------------------------------------------------------------------\n");
-    sp0->dump();
-    fprintf(stderr, "--------------------------------------------------------------------------------\n");
+  }
 
-    assert(sp == sp0);
+  void LLVMBuilderResetDebugLocation(LLVMBuilderRef builder) {
+    llvm::unwrap(builder)->SetCurrentDebugLocation(nullptr);
   }
 
   LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder) {
