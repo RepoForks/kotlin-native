@@ -73,7 +73,7 @@ internal fun emitLLVM(context: Context) {
 
         @Suppress("UNCHECKED_CAST")
         context.debugInfo.module = debugInfo.DICreateModule(context.debugInfo.builder, diLlvmModule as debugInfo.DIScopeOpaqueRef, outFile, "", "", "")
-        context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x8042, outFile, "", "konanc", 0, "", 2)
+        context.debugInfo.compilationModule = debugInfo.DICreateCompilationUnit(context.debugInfo.builder, 0x1, outFile, "", "konanc", 0, "", 2)
 
         val version = "Dwarf Version"
         val dwarfVersion = LLVMMDNode(listOf(Int32(2).llvm, LLVMMDString(version, version.length)!!, Int32(2).llvm).toCValues(), 3)
@@ -336,6 +336,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         context.llvm.fileInitializers.clear()
 
+        currentFile = declaration
         declaration.acceptChildrenVoid(this)
 
         if (context.llvm.fileInitializers.isEmpty())
@@ -350,7 +351,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val initFunction = createInitBody(initName)
         val initNode = createInitNode(initFunction, nodeName)
         createInitCtor(ctorName, initNode)
-        currentFile = declaration
     }
 
     //-------------------------------------------------------------------------//
@@ -1594,11 +1594,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val functionScope = currentCodeContext.functionScope() as? FunctionScope ?: return
             val scope         = functionScope.declaration ?: return
             val diScope       = scope.scope()
-            try {
-                @Suppress("UNCHECKED_CAST")
-                codegen.debugLocation(element.line(), element.column(), diScope as debugInfo.DIScopeOpaqueRef)
-            } catch (ignored: Exception) {
-            }
+            @Suppress("UNCHECKED_CAST")
+            codegen.debugLocation(element.line(), element.column(), diScope as debugInfo.DIScopeOpaqueRef)
         }
     }
 
@@ -1626,7 +1623,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         codegen.resetDebugLocation()
     }
 
-    fun IrFile.file():debugInfo.DIFileRef {
+    private fun IrFile.file():debugInfo.DIFileRef {
         return context.debugInfo.files.getOrPut(this) {
             val path = this.fileEntry.name.split("/")
             debugInfo.DICreateFile(context.debugInfo.builder, path.last(), path.dropLast(1).joinToString("/"))!!
@@ -1637,7 +1634,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
 
     @Suppress("UNCHECKED_CAST")
-    fun IrFunction.scope():debugInfo.DIScopeOpaqueRef? {
+    private fun IrFunction.scope():debugInfo.DIScopeOpaqueRef? {
         //val descriptor = this.descriptor
         currentFile?:return null
         return context.debugInfo.subprograms.getOrPut(descriptor) {
@@ -1647,16 +1644,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
-                        currentFile!!.file(), line, subroutineType, 0, 1, 0)
+                        currentFile!!.file(), line(), subroutineType, 0, 1, 0)
                 //println("$linkageName\t$descriptor")
                 debugInfo.DIFunctionAddSubprogram(functionLlvmValue , diFunction)
                 diFunction!!
             }
         } as debugInfo.DIScopeOpaqueRef
-    }
-
-    val IrFunction.line:Int  get() {
-       return currentFile?.fileEntry?.getLineNumber(startOffset)  ?: -1
     }
     /**
      * Evaluates all arguments of [expression] that are explicitly represented in the IR.
