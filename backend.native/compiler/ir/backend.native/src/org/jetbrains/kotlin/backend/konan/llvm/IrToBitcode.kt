@@ -100,8 +100,6 @@ internal fun emitLLVM(context: Context) {
             }
         }
 
-
-        println("writing bitcode\n")
         debugInfo.DIFinalize(context.debugInfo.builder)
         LLVMWriteBitcodeToFile(llvmModule, outFile)
 }
@@ -1645,7 +1643,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
                         currentFile!!.file(), line(), subroutineType, 0, 1, 0)
-                //println("$linkageName\t$descriptor")
                 debugInfo.DIFunctionAddSubprogram(functionLlvmValue , diFunction)
                 diFunction!!
             }
