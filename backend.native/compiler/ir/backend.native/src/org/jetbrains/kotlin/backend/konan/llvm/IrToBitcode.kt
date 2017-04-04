@@ -199,6 +199,12 @@ internal interface CodeContext {
      */
     fun functionScope(): CodeContext
 
+    /**
+     * Returns owning function scope.
+     *
+     * @return the requested value
+     */
+    fun fileScope(): CodeContext
 }
 
 //-------------------------------------------------------------------------//
@@ -239,6 +245,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         override fun genGetValue(descriptor: ValueDescriptor) = unsupported(descriptor)
 
         override fun functionScope(): CodeContext = unsupported()
+
+        override fun fileScope(): CodeContext = unsupported()
     }
 
     /**
@@ -329,26 +337,26 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     //-------------------------------------------------------------------------//
-    var currentFile: IrFile? = null
     override fun visitFile(declaration: IrFile) {
 
         context.llvm.fileInitializers.clear()
 
-        currentFile = declaration
-        declaration.acceptChildrenVoid(this)
+        using(FileScope(declaration)) {
+            declaration.acceptChildrenVoid(this)
 
-        if (context.llvm.fileInitializers.isEmpty())
-            return
+            if (context.llvm.fileInitializers.isEmpty())
+                return
 
-        // Create global initialization records.
-        val fileName = declaration.name.takeLastWhile { it != '/' }.dropLastWhile { it != '.' }.dropLast(1)
-        val initName = "${fileName}_init_${context.llvm.globalInitIndex}"
-        val nodeName = "${fileName}_node_${context.llvm.globalInitIndex}"
-        val ctorName = "${fileName}_ctor_${context.llvm.globalInitIndex++}"
+            // Create global initialization records.
+            val fileName = declaration.name.takeLastWhile { it != '/' }.dropLastWhile { it != '.' }.dropLast(1)
+            val initName = "${fileName}_init_${context.llvm.globalInitIndex}"
+            val nodeName = "${fileName}_node_${context.llvm.globalInitIndex}"
+            val ctorName = "${fileName}_ctor_${context.llvm.globalInitIndex++}"
 
-        val initFunction = createInitBody(initName)
-        val initNode = createInitNode(initFunction, nodeName)
-        createInitCtor(ctorName, initNode)
+            val initFunction = createInitBody(initName)
+            val initNode = createInitNode(initFunction, nodeName)
+            createInitCtor(ctorName, initNode)
+        }
     }
 
     //-------------------------------------------------------------------------//
@@ -1461,6 +1469,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     //-------------------------------------------------------------------------//
 
+    private inner class FileScope(val file:IrFile) : InnerScopeImpl() {
+        override fun fileScope(): CodeContext = this
+    }
+
+    //-------------------------------------------------------------------------//
+
     private fun evaluateInlineFunction(value: IrInlineFunctionBody): LLVMValueRef {
         context.log("evaluateInlineFunction         : ${value.statements.forEach { ir2string(it) }}")
 
@@ -1587,19 +1601,18 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         TODO(ir2string(value))
     }
 
+    private fun file() = (currentCodeContext.fileScope() as FileScope).file
     private fun debugLocation(element: IrElement) {
-        currentFile?.apply {
-            val functionScope = currentCodeContext.functionScope() as? FunctionScope ?: return
-            val scope         = functionScope.declaration ?: return
-            val diScope       = scope.scope()
-            @Suppress("UNCHECKED_CAST")
-            codegen.debugLocation(element.line(), element.column(), diScope as debugInfo.DIScopeOpaqueRef)
-        }
+        val functionScope = currentCodeContext.functionScope() as? FunctionScope ?: return
+        val scope         = functionScope.declaration ?: return
+        val diScope       = scope.scope()
+        @Suppress("UNCHECKED_CAST")
+        codegen.debugLocation(element.line(), element.column(), diScope as debugInfo.DIScopeOpaqueRef)
     }
 
     private fun IrElement.line():Int {
         try {
-            return currentFile?.fileEntry?.getLineNumber(this.startOffset) ?: -1
+            return file().fileEntry?.getLineNumber(this.startOffset) ?: -1
         }
         catch (ignored: Exception) {
             return -1
@@ -1608,7 +1621,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     private fun IrElement.column():Int {
         try {
-            return currentFile?.fileEntry?.getColumnNumber(this.startOffset) ?: -1
+            return file().fileEntry?.getColumnNumber(this.startOffset) ?: -1
         }
         catch (ignored: Exception) {
             return -1
@@ -1633,8 +1646,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     @Suppress("UNCHECKED_CAST")
     private fun IrFunction.scope():debugInfo.DIScopeOpaqueRef? {
-        //val descriptor = this.descriptor
-        currentFile?:return null
         return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
                 val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type), 1)
@@ -1642,7 +1653,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
                         linkageName, linkageName,
-                        currentFile!!.file(), line(), subroutineType, 0, 1, 0)
+                        file().file(), line(), subroutineType, 0, 1, 0)
                 debugInfo.DIFunctionAddSubprogram(functionLlvmValue , diFunction)
                 diFunction!!
             }
