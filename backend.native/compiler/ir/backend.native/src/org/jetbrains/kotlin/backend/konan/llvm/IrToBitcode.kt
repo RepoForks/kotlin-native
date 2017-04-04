@@ -197,14 +197,14 @@ internal interface CodeContext {
      *
      * @return the requested value
      */
-    fun functionScope(): CodeContext
+    fun functionScope(): CodeContext?
 
     /**
      * Returns owning function scope.
      *
      * @return the requested value
      */
-    fun fileScope(): CodeContext
+    fun fileScope(): CodeContext?
 }
 
 //-------------------------------------------------------------------------//
@@ -244,9 +244,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         override fun genGetValue(descriptor: ValueDescriptor) = unsupported(descriptor)
 
-        override fun functionScope(): CodeContext = unsupported()
+        override fun functionScope(): CodeContext? = null
 
-        override fun fileScope(): CodeContext = unsupported()
+        override fun fileScope(): CodeContext? = null
     }
 
     /**
@@ -1470,7 +1470,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
 
     private inner class FileScope(val file:IrFile) : InnerScopeImpl() {
-        override fun fileScope(): CodeContext = this
+        override fun fileScope(): CodeContext? = this
     }
 
     //-------------------------------------------------------------------------//
@@ -1628,10 +1628,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
-    private inline fun <T> debugInfo(element: IrElement, body:() -> T) {
+    private inline fun <T> debugInfo(element: IrElement, body:() -> T):T {
         debugLocation(element)
-        body()
+        val result = body()
         codegen.resetDebugLocation()
+        return result
     }
 
     private fun IrFile.file():debugInfo.DIFileRef {
