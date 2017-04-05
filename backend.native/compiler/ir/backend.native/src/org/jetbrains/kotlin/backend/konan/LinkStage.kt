@@ -55,6 +55,7 @@ internal open class MacOSPlatform(distribution: Distribution)
         properties.propertyList("linkerOptimizationFlags.osx")
     override val linkerKonanFlags = properties.propertyList("linkerKonanFlags.osx")
     override val linker = "${distribution.sysRoot}/usr/bin/ld"
+    private val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
 
     open val arch = properties.propertyString("arch.osx")!!
     open val osVersionMin = properties.propertyList("osVersionMin.osx")
@@ -74,6 +75,10 @@ internal open class MacOSPlatform(distribution: Distribution)
             if (optimize) linkerOptimizationFlags else {listOf<String>()} +
             linkerKonanFlags +
             listOf("-lSystem")
+    }
+
+    open fun dsymutilCommand(executable: ExecutableFile): List<String> {
+        return listOf(dsymutil, executable)
     }
 }
 
@@ -259,6 +264,10 @@ internal class LinkStage(val context: Context) {
                 entryPointSelector
 
         runTool(*linkCommand.toTypedArray())
+        if (platform is MacOSPlatform) {
+            val dsymutilCommand = platform.dsymutilCommand(executable)
+            runTool(*dsymutilCommand.toTypedArray())
+        }
 
         return executable
     }
