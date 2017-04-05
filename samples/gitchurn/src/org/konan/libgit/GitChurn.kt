@@ -20,12 +20,12 @@ import kotlinx.cinterop.*
 import libgit2.*
 
 fun main(args: Array<String>) {
-    if (args.size == 0)
+    if (args.size == 1)
         return help()
 
-    val workDir = args[0]
+    val workDir = args[1]
     val limit = if (args.size > 1) {
-        args[1].toInt()
+        args[2].toInt()
     } else
         null
 

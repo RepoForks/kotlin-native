@@ -957,15 +957,15 @@ fun main(args: Array<String>) {
     var width = 10
     var height = 20
     when (args.size) {
-        1 -> startLevel = atoi(args[0])
-        2 -> {
-            width = atoi(args[0])
-            height = atoi(args[1])
-        }
+        2 -> startLevel = atoi(args[1])
         3 -> {
-            width = atoi(args[0])
-            height = atoi(args[1])
-            startLevel = atoi(args[2])
+            width = atoi(args[1])
+            height = atoi(args[2])
+        }
+        4 -> {
+            width = atoi(args[1])
+            height = atoi(args[2])
+            startLevel = atoi(args[3])
         }
     }
     val visualizer = SDL_Visualizer(width, height)

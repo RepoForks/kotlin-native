@@ -18,12 +18,12 @@ import kotlinx.cinterop.*
 import sockets.*
 
 fun main(args: Array<String>) {
-    if (args.size < 1) {
+    if (args.size < 2) {
         println("Usage: ./echo_server <port>")
         return
     }
 
-    val port = atoi(args[0]).toShort()
+    val port = atoi(args[1]).toShort()
 
     memScoped {
 

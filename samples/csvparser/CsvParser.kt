@@ -39,13 +39,13 @@ fun parseLine(line: String, separator: Char) : List<String> {
 }
 
 fun main(args: Array<String>) {
-    if (args.size != 3) {
+    if (args.size != 4) {
         println("usage: csvparser.kexe file.csv column count")
         return
     }
-    val fileName = args[0]
-    val column = args[1].toInt()
-    val count = args[2].toInt()
+    val fileName = args[1]
+    val column = args[2].toInt()
+    val count = args[3].toInt()
 
     val file = fopen(fileName, "r")
     if (file == null) {

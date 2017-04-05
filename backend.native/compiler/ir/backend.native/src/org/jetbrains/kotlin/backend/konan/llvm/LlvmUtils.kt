@@ -182,14 +182,26 @@ internal fun getGlobalType(ptrToGlobal: LLVMValueRef): LLVMTypeRef {
     return LLVMGetElementType(ptrToGlobal.type)!!
 }
 
-internal fun ContextUtils.externalGlobal(name: String, type: LLVMTypeRef): LLVMValueRef {
+internal fun ContextUtils.internalGlobal(name: String, type: LLVMTypeRef,
+                                         threadLocal: Boolean = false): LLVMValueRef {
+    val result = LLVMAddGlobal(context.llvmModule, type, name)!!
+    if (threadLocal)
+        LLVMSetThreadLocalMode(result, LLVMThreadLocalMode.LLVMLocalExecTLSModel)
+    return result
+}
+
+internal fun ContextUtils.externalGlobal(name: String, type: LLVMTypeRef,
+                                         threadLocal: Boolean = false): LLVMValueRef {
     val found = LLVMGetNamedGlobal(context.llvmModule, name)
     if (found != null) {
         assert (getGlobalType(found) == type)
         assert (LLVMGetInitializer(found) == null)
         return found
     } else {
-        return LLVMAddGlobal(context.llvmModule, type, name)!!
+        val result = LLVMAddGlobal(context.llvmModule, type, name)!!
+        if (threadLocal)
+            LLVMSetThreadLocalMode(result, LLVMThreadLocalMode.LLVMLocalExecTLSModel)
+        return result
     }
 }
 
