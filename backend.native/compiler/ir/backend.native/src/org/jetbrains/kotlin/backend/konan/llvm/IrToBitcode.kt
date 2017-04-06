@@ -1678,7 +1678,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     private fun IrFunction.scope():debugInfo.DIScopeOpaqueRef? {
         return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
-                val subroutineType = debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type), 1)
+                val subroutineType = descriptor.subroutineType //debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(kDiInt32Type), 1)
                 val functionLlvmValue = codegen.functionLlvmValue(descriptor) as debugInfo.LLVMValueRef
                 val linkageName = LLVMGetValueName(functionLlvmValue as llvm.LLVMValueRef)!!.toKString()
                 val diFunction = debugInfo.DICreateFunction(context.debugInfo.builder, context.debugInfo.compilationModule as debugInfo.DIScopeOpaqueRef,
@@ -1689,6 +1689,31 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             }
         } as debugInfo.DIScopeOpaqueRef
     }
+
+    //-------------------------------------------------------------------------//
+    private val  FunctionDescriptor.subroutineType: debugInfo.DISubroutineTypeRef
+        get() = memScoped {
+            debugInfo.DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(this@subroutineType.valueParameters.map{it.diType}), this@subroutineType.valueParameters.size)!!
+        }
+
+    //-------------------------------------------------------------------------//
+    @Suppress("UNCHECKED_CAST")
+    private val  ValueParameterDescriptor.diType: debugInfo.DITypeOpaqueRef
+    get() = context.debugInfo.types.getOrPut(this.type) {
+        when {
+            KotlinBuiltIns.isInt(this.type)              -> debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isBoolean(this.type)          -> debugInfo.DICreateBasicType(context.debugInfo.builder, "boolean", 32, 4, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isChar(this.type)             -> debugInfo.DICreateBasicType(context.debugInfo.builder, "char", 16, 4, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isShort(this.type)            -> debugInfo.DICreateBasicType(context.debugInfo.builder, "short", 16, 4, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isByte(this.type)             -> debugInfo.DICreateBasicType(context.debugInfo.builder, "byte", 8, 1, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isLong(this.type)             -> debugInfo.DICreateBasicType(context.debugInfo.builder, "long", 64, 8, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isFloat(this.type)            -> debugInfo.DICreateBasicType(context.debugInfo.builder, "float", 32, 4, 0) as debugInfo.DITypeOpaqueRef
+            KotlinBuiltIns.isDouble(this.type)           -> debugInfo.DICreateBasicType(context.debugInfo.builder, "double", 64, 8, 0) as debugInfo.DITypeOpaqueRef
+            (!KotlinBuiltIns.isPrimitiveType(this.type)) -> debugInfo.DICreateBasicType(context.debugInfo.builder, "any?", 64, 4, 0) as debugInfo.DITypeOpaqueRef
+            else -> TODO(this.type.toString())
+        }
+    }
+
 
     //-------------------------------------------------------------------------//
     /**

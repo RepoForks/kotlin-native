@@ -409,6 +409,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         var builder: debugInfo.DIBuilderRef? = null
         var module: debugInfo.DIModuleRef? = null
         var compilationModule: debugInfo.DICompileUnitRef? = null
+        var types = mutableMapOf<KotlinType, debugInfo.DITypeOpaqueRef>()
     }
 }
 
