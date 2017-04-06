@@ -1597,6 +1597,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         return null
     }
 
+    //-------------------------------------------------------------------------//
     private fun evaluateCall(value: IrMemberAccessExpression): LLVMValueRef {
         context.log("evaluateCall                   : ${ir2string(value)}")
 
@@ -1620,7 +1621,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         TODO(ir2string(value))
     }
 
+    //-------------------------------------------------------------------------//
     private fun file() = (currentCodeContext.fileScope() as FileScope).file
+
+    //-------------------------------------------------------------------------//
     private fun debugLocation(element: IrElement) {
         val functionScope = currentCodeContext.functionScope() as? FunctionScope ?: return
         val scope         = functionScope.declaration ?: return
@@ -1629,6 +1633,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         codegen.debugLocation(element.line(), element.column(), diScope as debugInfo.DIScopeOpaqueRef)
     }
 
+    //-------------------------------------------------------------------------//
     private fun IrElement.line():Int {
         try {
             return file().fileEntry?.getLineNumber(this.startOffset) ?: -1
@@ -1638,6 +1643,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
+    //-------------------------------------------------------------------------//
     private fun IrElement.column():Int {
         try {
             return file().fileEntry?.getColumnNumber(this.startOffset) ?: -1
@@ -1647,6 +1653,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
+    //-------------------------------------------------------------------------//
     private inline fun <T> debugInfo(element: IrElement, body:() -> T):T {
         debugLocation(element)
         val result = body()
@@ -1654,6 +1661,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         return result
     }
 
+    //-------------------------------------------------------------------------//
     private fun IrFile.file():debugInfo.DIFileRef {
         return context.debugInfo.files.getOrPut(this) {
             val path = this.fileEntry.name.split("/")
@@ -1661,9 +1669,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
     }
 
+    //-------------------------------------------------------------------------//
+
     @Suppress("UNCHECKED_CAST")
     val kDiInt32Type = debugInfo.DICreateBasicType(context.debugInfo.builder, "int", 32, 4, 0) as debugInfo.DITypeOpaqueRef
 
+    //-------------------------------------------------------------------------//
     @Suppress("UNCHECKED_CAST")
     private fun IrFunction.scope():debugInfo.DIScopeOpaqueRef? {
         return context.debugInfo.subprograms.getOrPut(descriptor) {
@@ -1679,6 +1690,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             }
         } as debugInfo.DIScopeOpaqueRef
     }
+
+    //-------------------------------------------------------------------------//
     /**
      * Evaluates all arguments of [expression] that are explicitly represented in the IR.
      * Returns results in the same order as LLVM function expects, assuming that all explicit arguments
