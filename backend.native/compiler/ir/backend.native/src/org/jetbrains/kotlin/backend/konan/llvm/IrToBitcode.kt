@@ -530,7 +530,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     override fun visitFunction(declaration: IrFunction) {
-        context.log("visitFunction                  : ${ir2string(declaration)}{")
+        context.log("visitFunction                  : ${ir2string(declaration)}")
         val body = declaration.body
 
         if (declaration.descriptor.modality == Modality.ABSTRACT) return
@@ -567,7 +567,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         if (context.shouldVerifyBitCode())
             verifyModule(context.llvmModule!!,
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
-        context.log("}visitFunction                  : ${ir2string(declaration)}")
     }
 
     //-------------------------------------------------------------------------//
